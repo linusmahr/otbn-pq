@@ -547,7 +547,7 @@
     - name: grs1
       doc: Source WDR
   doc: |
-    Writes a WDR to a PQSR.
+    Writes a GPR to a PQSR.
     If `pqsr` isn't the index of a valid PQSR, this halts with an error (TODO: Implement and Specify error code).
   encoding:
     scheme: pqsrbasewr
@@ -568,7 +568,7 @@
     - name: wsr
       doc: The PQSR to read
   doc: |
-    Reads a PQSR to a WDR.
+    Reads a PQSR to a GPR.
     If `pqsr` isn't the index of a valid PQSR, this halts with an error (TODO: Implement and Specify error code).
   encoding:
     scheme: pqsrbasewr
