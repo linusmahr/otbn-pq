@@ -240,3 +240,41 @@ def test_omega_update2(pqspr_file):
     pqspr_file.omega.commit()
     assert pqspr_file.omega.read_unsigned() == 0xC1B1CC77
     assert pqspr_file.omega._next_uval == None
+    
+def test_psi_update1(pqspr_file):
+    # test 1
+    pqspr_file.wipe()
+    pqspr_file.commit()
+    
+    pqspr_file.omega.write_unsigned(0x55555555)
+    pqspr_file.commit()
+    
+    assert pqspr_file.psi._uval == 0
+    assert pqspr_file.psi._next_uval == None
+    pqspr_file.psi.update()
+    assert pqspr_file.psi._uval == 0
+    pqspr_file.psi.commit()
+    
+    hex_value = hex(pqspr_file.psi.read_unsigned())
+    print(hex_value)
+
+    assert pqspr_file.psi.read_unsigned() == 0x5555555555555555555555555555555555555555555555555555555555555555
+    
+def test_psi_update2(pqspr_file):
+    # test 2
+    pqspr_file.wipe()
+    pqspr_file.commit()
+    
+    pqspr_file.omega.write_unsigned(0x01234567)
+    pqspr_file.commit()
+    
+    assert pqspr_file.psi._uval == 0
+    assert pqspr_file.psi._next_uval == None
+    pqspr_file.psi.update()
+    assert pqspr_file.psi._uval == 0
+    pqspr_file.psi.commit()
+    
+    hex_value = hex(pqspr_file.psi.read_unsigned())
+    print(hex_value)
+
+    assert pqspr_file.psi.read_unsigned() == 0x01234567_01234567_01234567_01234567_01234567_01234567_01234567_01234567

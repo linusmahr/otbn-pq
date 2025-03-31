@@ -17,17 +17,23 @@ class PQSPRegWide(Reg):
         """Extracts the 32-bit word at the given index (0-7)"""
         assert 0 <= word_idx < 8, "Word index out of range (0-7)"
         return (self._uval >> (word_idx * 32)) & 0xFFFFFFFF
-
+        
     def _set_word(self, word_idx: int, value: int) -> None:
-        """Sets the 32-bit word at the given index (0-7)"""
+        """Sets the 32-bit word at the given index (0-7) while preserving others."""
         assert 0 <= word_idx < 8, "Word index out of range (0-7)"
         assert 0 <= value < (1 << 32), "Value must be a 32-bit unsigned integer"
-        
-        # Clear the old word and set the new value
+
+        # Initialize _next_uval from _uval if it's None
+        # Necessary for multiple word writes in same cycle
+        if self._next_uval is None:
+            self._next_uval = self._uval  
+
+        # Clear the specific word and set the new value
         mask = 0xFFFFFFFF << (word_idx * 32)
-        self._next_uval = (self._uval & ~mask) | (value << (word_idx * 32))
+        self._next_uval = (self._next_uval & ~mask) | (value << (word_idx * 32))
+
         self._mark_written()
-        
+      
     def write_word_unsigned(self, uval: int, idx: int) -> None:
         """Writes a 32-bit word to a specific word index (0-7)"""
         self._set_word(idx, uval)
@@ -153,7 +159,7 @@ class PQSPRegTwiddle(Reg):
         
 class PQSPRegOmega(PQSPRegWide):
     '''Class for omega
-    Length is 32 bits'''
+    Length is 256 bits'''
     def __init__(self, parent, idx, uval):
         super().__init__(parent, idx, uval=uval)
         self.parent = parent
@@ -175,6 +181,18 @@ class PQSPRegOmega(PQSPRegWide):
             
         self._next_uval = t        
         self._mark_written()
+        
+class PQSPRegPsi(PQSPRegWide):
+    '''Class for psi
+    Length is 256 bits'''
+    def __init__(self, parent, idx, uval):
+        super().__init__(parent, idx, uval=uval)
+        self.parent = parent
+        
+    def update(self):
+        omega = self.parent.omega.read_word_unsigned(self.parent.idx_psi.read_unsigned())
+        for byte in range(8):
+            self.write_word_unsigned(omega, byte)
 
 class PQSPRFile:
     '''Models the Post-Quantum Special Purpose Register File'''
@@ -185,7 +203,7 @@ class PQSPRFile:
         self.q_dash = Reg(self, 1, 32, 0)
         self.twiddle = PQSPRegTwiddle(self, 2, 0)
         self.omega = PQSPRegOmega(self, 3, 0)
-        self.psi = PQSPRegWide(self, 4, 0)
+        self.psi = PQSPRegPsi(self, 4, 0)
         self.idx_omega = PQSPRegInc(self, 5, 0)
         self.idx_psi = PQSPRegInc(self, 6, 0)
         self.const = Reg(self, 7, 32, 0)
