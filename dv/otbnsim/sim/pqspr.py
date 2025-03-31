@@ -130,12 +130,8 @@ class PQSPRegTwiddle(Reg):
     def inv(self):
         """Inverts twiddle by calculating: twiddle = prime - twiddle.
         With single modulo reduction.
-        Doesnt handle twidle > 2 * prime. Returns negative value"""
-        q = self.parent.q.read_unsigned()
-        
-        adds = q * 2 - self._uval
-        sub = adds - q
-        self._next_uval = adds if adds < q else sub
+        Prime must always be greater than twiddle."""      
+        self._next_uval = self.parent.q.read_unsigned() - self._uval
         self._mark_written()
         
     def update(self):
@@ -193,6 +189,21 @@ class PQSPRegPsi(PQSPRegWide):
         omega = self.parent.omega.read_word_unsigned(self.parent.idx_psi.read_unsigned())
         for byte in range(8):
             self.write_word_unsigned(omega, byte)
+        self._mark_written()
+            
+class PQSPRegM(Reg):
+    '''Class for m
+    Length is 32 bits'''
+    def __init__(self, parent, idx, uval):
+        super().__init__(parent, idx, width=32, uval=uval)
+        self.parent = parent
+        
+    def update(self):
+        m = self.read_unsigned()
+        mode = self.parent.mode.read_unsigned()
+        
+        self._next_uval = ((m & 0x7f) << 1) if mode else ((m & 0xff) >> 1)
+        self._mark_written()
 
 class PQSPRFile:
     '''Models the Post-Quantum Special Purpose Register File'''
@@ -210,9 +221,15 @@ class PQSPRFile:
         self.rc = PQSPRegWide(self, 8, 0)
         self.idx_rc = PQSPRegInc(self, 9, 0)
         # RAU
-        # todo
+        self.m = PQSPRegM(self, 10, 0)
+        self.j = Reg(self, 11, 32, 0)
+        self.idx_0 = PQSPRegInc(self, 12, 0)
+        self.idx_1 = PQSPRegInc(self, 13, 0)
+        self.mode = Reg(self, 14, 32, 0)
+        self.x = PQSPRegInc(self, 15, 0)
+        self.y = PQSPRegInc(self, 16, 0)
         
-        # Store registers in a dic to iterate over them
+        # Store registers in a dict to iterate over them
         self._by_idx = {
             0: self.q,
             1: self.q_dash,
@@ -223,7 +240,14 @@ class PQSPRFile:
             6: self.idx_psi,
             7: self.const,
             8: self.rc,
-            9: self.idx_rc
+            9: self.idx_rc,
+            10: self.m,
+            11: self.j,
+            12: self.idx_0,
+            13: self.idx_1,
+            14: self.mode,
+            15: self.x,
+            16: self.y
         }
         
     def mark_written(self, idx: int) -> None:

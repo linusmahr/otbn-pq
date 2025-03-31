@@ -194,19 +194,28 @@ def test_twiddle_invert2(pqspr_file):
     pqspr_file.twiddle.commit()
     assert pqspr_file.twiddle.read_unsigned() == 0x68598CDF
     
-def test_twiddle_invert3(pqspr_file):
-    # test 3
-    pqspr_file.wipe()
+def test_twiddle_mark_written(pqspr_file):
+    pqspr_file._pending_writes.clear()
+    assert not pqspr_file._pending_writes
+    pqspr_file.twiddle.update()
+    assert 2 in pqspr_file._pending_writes
     pqspr_file.commit()
+    assert not pqspr_file._pending_writes
     
-    pqspr_file.q.write_unsigned(0x33)
-    pqspr_file.twiddle.write_unsigned(0x44)
-    pqspr_file.commit()
-    
-    assert pqspr_file.twiddle._next_uval == None
+    pqspr_file._pending_writes.clear()
+    assert not pqspr_file._pending_writes
     pqspr_file.twiddle.inv()
-    pqspr_file.twiddle.commit()
-    assert pqspr_file.twiddle.read_unsigned() == 0x22
+    assert 2 in pqspr_file._pending_writes
+    pqspr_file.commit()
+    assert not pqspr_file._pending_writes
+    
+    pqspr_file._pending_writes.clear()
+    assert not pqspr_file._pending_writes
+    pqspr_file.twiddle.set_as_psi()
+    assert 2 in pqspr_file._pending_writes
+    pqspr_file.commit()
+    assert not pqspr_file._pending_writes
+    
     
 def test_omega_update1(pqspr_file):
     # test 1
@@ -240,6 +249,14 @@ def test_omega_update2(pqspr_file):
     pqspr_file.omega.commit()
     assert pqspr_file.omega.read_unsigned() == 0xC1B1CC77
     assert pqspr_file.omega._next_uval == None
+    
+def test_omega_mark_written(pqspr_file):
+    pqspr_file._pending_writes.clear()
+    assert not pqspr_file._pending_writes
+    pqspr_file.omega.update()
+    assert 3 in pqspr_file._pending_writes
+    pqspr_file.commit()
+    assert not pqspr_file._pending_writes
     
 def test_psi_update1(pqspr_file):
     # test 1
@@ -278,3 +295,47 @@ def test_psi_update2(pqspr_file):
     print(hex_value)
 
     assert pqspr_file.psi.read_unsigned() == 0x01234567_01234567_01234567_01234567_01234567_01234567_01234567_01234567
+    
+def test_omega_mark_written(pqspr_file):
+    pqspr_file._pending_writes.clear()
+    assert not pqspr_file._pending_writes
+    pqspr_file.psi.update()
+    assert 4 in pqspr_file._pending_writes
+    pqspr_file.commit()
+    assert not pqspr_file._pending_writes
+    
+def test_m_update1(pqspr_file):
+    # test 1
+    pqspr_file.wipe()
+    pqspr_file.commit()
+    
+    pqspr_file.mode.write_unsigned(0)
+    pqspr_file.m.write_unsigned(0xf)
+    pqspr_file.commit()
+    
+    pqspr_file.m.update()
+    assert pqspr_file.m.read_unsigned() == 0xf
+    pqspr_file.m.commit()
+    assert pqspr_file.m.read_unsigned() == 0x7
+    
+    pqspr_file.m.update()
+    pqspr_file.m.commit()
+    assert pqspr_file.m.read_unsigned() == 0x3
+    
+def test_m_update2(pqspr_file):
+    # test 2
+    pqspr_file.wipe()
+    pqspr_file.commit()
+    
+    pqspr_file.mode.write_unsigned(1)
+    pqspr_file.m.write_unsigned(0x7)
+    pqspr_file.commit()
+    
+    pqspr_file.m.update()
+    assert pqspr_file.m.read_unsigned() == 0x7
+    pqspr_file.m.commit()
+    assert pqspr_file.m.read_unsigned() == 0xe
+    
+    pqspr_file.m.update()
+    pqspr_file.m.commit()
+    assert pqspr_file.m.read_unsigned() == 0x1c
