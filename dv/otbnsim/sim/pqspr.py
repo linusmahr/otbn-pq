@@ -192,7 +192,7 @@ class PQSPRegPsi(PQSPRegWide):
         self._mark_written()
             
 class PQSPRegM(Reg):
-    '''Class for m
+    '''Class for m register
     Length is 32 bits'''
     def __init__(self, parent, idx, uval):
         super().__init__(parent, idx, width=32, uval=uval)
@@ -203,6 +203,23 @@ class PQSPRegM(Reg):
         mode = self.parent.mode.read_unsigned()
         
         self._next_uval = ((m & 0x7f) << 1) if mode else ((m & 0xff) >> 1)
+        self._mark_written()
+        
+class PQSPRegIncIdx(PQSPRegInc):
+    '''Class for idx register
+    length is 32 bit'''
+    def __init__(self, parent, idx, uval):
+        super().__init__(parent, idx, uval=uval)
+        self.parent = parent
+        self.id = idx
+        
+    def set(self):
+        value = self.parent.j.read_unsigned() & 0xFF
+        # bit reverse (+ m)
+        bit_reverse = int(f"{value:08b}"[::-1], 2)
+        add = (bit_reverse + self.parent.m.read_unsigned()) & 0xff
+        # choose result depending on idx0 (self.id=12) or idx1 (self.id=13)
+        self._next_uval = bit_reverse if self.id == 12 else add
         self._mark_written()
 
 class PQSPRFile:
@@ -222,9 +239,9 @@ class PQSPRFile:
         self.idx_rc = PQSPRegInc(self, 9, 0)
         # RAU
         self.m = PQSPRegM(self, 10, 0)
-        self.j = Reg(self, 11, 32, 0)
-        self.idx_0 = PQSPRegInc(self, 12, 0)
-        self.idx_1 = PQSPRegInc(self, 13, 0)
+        self.j = PQSPRegInc(self, 11, 0)
+        self.idx_0 = PQSPRegIncIdx(self, 12, 0)
+        self.idx_1 = PQSPRegIncIdx(self, 13, 0)
         self.mode = Reg(self, 14, 32, 0)
         self.x = PQSPRegInc(self, 15, 0)
         self.y = PQSPRegInc(self, 16, 0)

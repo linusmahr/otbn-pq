@@ -339,3 +339,52 @@ def test_m_update2(pqspr_file):
     pqspr_file.m.update()
     pqspr_file.m.commit()
     assert pqspr_file.m.read_unsigned() == 0x1c
+    
+def test_idx0(pqspr_file):
+    pqspr_file.wipe()
+    pqspr_file.commit()
+    
+    pqspr_file.idx_0.write_unsigned(0x12)
+    pqspr_file.commit()
+    assert pqspr_file.idx_0.read_unsigned() == 0x12
+    
+    pqspr_file.idx_0.inc()
+    pqspr_file.commit()
+    assert pqspr_file.idx_0.read_unsigned() == 0x13
+    
+    assert not pqspr_file._pending_writes
+    pqspr_file.idx_0.inc()
+    assert 12 in pqspr_file._pending_writes
+    pqspr_file.commit()
+    assert not pqspr_file._pending_writes
+    
+    pqspr_file.j.write_unsigned(0x333)
+    pqspr_file.commit()
+    pqspr_file.idx_0.set()
+    pqspr_file.commit()
+    assert pqspr_file.idx_0.read_unsigned() == 0xcc
+    
+def test_idx1(pqspr_file):
+    pqspr_file.wipe()
+    pqspr_file.commit()
+    
+    pqspr_file.idx_1.write_unsigned(0x12)
+    pqspr_file.commit()
+    assert pqspr_file.idx_1.read_unsigned() == 0x12
+    
+    pqspr_file.idx_1.inc()
+    pqspr_file.commit()
+    assert pqspr_file.idx_1.read_unsigned() == 0x13
+    
+    assert not pqspr_file._pending_writes
+    pqspr_file.idx_1.inc()
+    assert 13 in pqspr_file._pending_writes
+    pqspr_file.commit()
+    assert not pqspr_file._pending_writes
+    
+    pqspr_file.j.write_unsigned(0x333)
+    pqspr_file.m.write_unsigned(0x11)
+    pqspr_file.commit()
+    pqspr_file.idx_1.set()
+    pqspr_file.commit()
+    assert pqspr_file.idx_1.read_unsigned() == 0xdd
