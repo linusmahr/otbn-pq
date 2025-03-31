@@ -7,7 +7,7 @@ from .trace import Trace
 class TracePQSPR(Trace):
     pass
 
-class PQSPRegW(Reg):
+class PQSPRegWide(Reg):
     '''Extends the Reg by byte addressing.
     Length is fixed to 256 bits'''
     def __init__(self, parent, idx, uval=0):
@@ -123,22 +123,58 @@ class PQSPRegTwiddle(Reg):
         
     def inv(self):
         """Inverts twiddle by calculating: twiddle = prime - twiddle.
-        With modulo reduction"""
-        adds = self.parent.q * 2 - self._uval
-        sub = adds - self.parent.q
-        self._next_uval = adds if adds < self.parent.q else sub
+        With single modulo reduction.
+        Doesnt handle twidle > 2 * prime. Returns negative value"""
+        q = self.parent.q.read_unsigned()
+        
+        adds = q * 2 - self._uval
+        sub = adds - q
+        self._next_uval = adds if adds < q else sub
         self._mark_written()
         
     def update(self):
         """Updates twiddle by calculating: twiddle = omega * twiddle
         with the Montgomery Multiplication"""
-        omega = self.parent.omega.read_unsigned() 
-        q = self.parent.q
-        q_inv = self.parent.q_dash 
-
-        self._next_uval = (self._uval * omega * q_inv) % q
+        omega = self.parent.omega.read_word_unsigned(self.parent.idx_omega.read_unsigned()) 
+        q = self.parent.q.read_unsigned() 
+        q_inv = self.parent.q_dash.read_unsigned() 
+        twiddle = self._uval
+        
+        # this is the systemverilog implementation
+        p = twiddle * omega
+        m = (p & 0xFFFFFFFF) * q_inv
+        s = p + ((m & 0xFFFFFFFF) * q)
+        t = (s >> 32) & 0xFFFFFFFF
+        if t >= q:
+            t -= q
+            
+        self._next_uval = t        
         self._mark_written()
         
+class PQSPRegOmega(PQSPRegWide):
+    '''Class for omega
+    Length is 32 bits'''
+    def __init__(self, parent, idx, uval):
+        super().__init__(parent, idx, uval=uval)
+        self.parent = parent
+        
+    def update(self):
+        """Updates omega by calculating: omega = omega * omega
+        for each byte with the Montgomery Multiplication"""
+        omega = self._uval
+        q = self.parent.q.read_unsigned() 
+        q_inv = self.parent.q_dash.read_unsigned()
+
+        # this is the systemverilog implementation
+        p = omega * omega
+        m = (p & 0xFFFFFFFF) * q_inv
+        s = p + ((m & 0xFFFFFFFF) * q)
+        t = (s >> 32) & 0xFFFFFFFF
+        if t >= q:
+            t -= q
+            
+        self._next_uval = t        
+        self._mark_written()
 
 class PQSPRFile:
     '''Models the Post-Quantum Special Purpose Register File'''
@@ -148,12 +184,12 @@ class PQSPRFile:
         self.q = Reg(self, 0, 32, 0)
         self.q_dash = Reg(self, 1, 32, 0)
         self.twiddle = PQSPRegTwiddle(self, 2, 0)
-        self.omega = PQSPRegW(self, 3, 0)
-        self.psi = PQSPRegW(self, 4, 0)
+        self.omega = PQSPRegOmega(self, 3, 0)
+        self.psi = PQSPRegWide(self, 4, 0)
         self.idx_omega = PQSPRegInc(self, 5, 0)
         self.idx_psi = PQSPRegInc(self, 6, 0)
         self.const = Reg(self, 7, 32, 0)
-        self.rc = PQSPRegW(self, 8, 0)
+        self.rc = PQSPRegWide(self, 8, 0)
         self.idx_rc = PQSPRegInc(self, 9, 0)
         # RAU
         # todo
@@ -209,5 +245,5 @@ class PQSPRFile:
         return [reg.read_unsigned(backdoor=True) for reg in self._by_idx]
     
     def wipe(self) -> None:
-        for r in self._by_idx:
+        for r in self._by_idx.values():
             r.write_invalid()

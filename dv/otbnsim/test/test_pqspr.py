@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import MagicMock
-from sim.pqspr import PQSPRegW, PQSPRegInc, PQSPRegTwiddle, PQSPRFile, TracePQSPR, Reg
+from sim.pqspr import PQSPRegWide, PQSPRegInc, PQSPRegTwiddle, PQSPRFile, TracePQSPR, Reg
 
 @pytest.fixture
 def mock_parent():
@@ -9,8 +9,8 @@ def mock_parent():
 
 @pytest.fixture
 def pqsp_reg_w(mock_parent):
-    """Creates an instance of PQSPRegW."""
-    return PQSPRegW(mock_parent, idx=3, uval=0)
+    """Creates an instance of PQSPRegWide."""
+    return PQSPRegWide(mock_parent, idx=3, uval=0)
 
 @pytest.fixture
 def pqsp_reg_inc(mock_parent):
@@ -27,7 +27,7 @@ def pqspr_file():
     """Creates an instance of PQSPRFile."""
     return PQSPRFile()
 
-# Tests for PQSPRegW
+# Tests for PQSPRegWide
 def test_read_word_unsigned(pqsp_reg_w):
     pqsp_reg_w._uval = 0x12345678_9ABCDEF0_FEDCBA98_76543210
     assert pqsp_reg_w.read_word_unsigned(0) == 0x76543210
@@ -83,24 +83,10 @@ def test_increment_overflow(pqsp_reg_inc):
     with pytest.raises(AssertionError):
         pqsp_reg_inc.inc()
 
-# Tests for PQSPRegTwiddle
-def test_set_as_psi(pqspr_file):
-    pqspr_file.twiddle.write_unsigned(0x1234)
-    pqspr_file.psi.write_unsigned(0x12345678_9ABCDEF0_FEDCBA98_76543210)
-    pqspr_file.commit()
-    assert pqspr_file.psi.B0 == 0x76543210
-    
-    pqspr_file.idx_psi.write_unsigned(1)
-    pqspr_file.commit()
-    assert pqspr_file.idx_psi.read_unsigned() == 1
-    pqspr_file.twiddle.set_as_psi()
-    pqspr_file.commit()
-    assert pqspr_file.twiddle.read_unsigned() == 0xFEDCBA98
-
 # Tests for PQSPRFile
 def test_register_initialization(pqspr_file):
     assert pqspr_file.q._width == 32
-    assert isinstance(pqspr_file.omega, PQSPRegW)
+    assert isinstance(pqspr_file.omega, PQSPRegWide)
     assert isinstance(pqspr_file.idx_rc, PQSPRegInc)
 
 def test_mark_written(pqspr_file):
@@ -118,7 +104,7 @@ def test_mark_written(pqspr_file):
     
 
 def test_get_reg(pqspr_file):
-    assert isinstance(pqspr_file.get_reg(3), PQSPRegW)
+    assert isinstance(pqspr_file.get_reg(3), PQSPRegWide)
 
 def test_commit(pqspr_file):
     pqspr_file.mark_written(3)
@@ -133,3 +119,124 @@ def test_abort(pqspr_file):
     pqspr_file.abort()
     pqspr_file.get_reg(3).abort.assert_called_once()
     assert len(pqspr_file._pending_writes) == 0
+
+# Tests for PQSPRegTwiddle
+def test_twiddle_set_as_psi(pqspr_file):
+    pqspr_file.twiddle.write_unsigned(0x1234)
+    pqspr_file.psi.write_unsigned(0x12345678_9ABCDEF0_FEDCBA98_76543210)
+    pqspr_file.commit()
+    assert pqspr_file.psi.B0 == 0x76543210
+    
+    pqspr_file.idx_psi.write_unsigned(1)
+    pqspr_file.commit()
+    assert pqspr_file.idx_psi.read_unsigned() == 1
+    pqspr_file.twiddle.set_as_psi()
+    pqspr_file.commit()
+    assert pqspr_file.twiddle.read_unsigned() == 0xFEDCBA98
+    
+def test_twiddle_update1(pqspr_file):
+    # test 1
+    pqspr_file.wipe()
+    pqspr_file.commit()
+    
+    pqspr_file.omega.write_unsigned(0x1234)
+    pqspr_file.q.write_unsigned(0xD01)
+    pqspr_file.q_dash.write_unsigned(0x94570cff)
+    pqspr_file.twiddle.write_unsigned(0x2)
+    pqspr_file.commit()
+    
+    assert pqspr_file.twiddle._next_uval == None
+    pqspr_file.twiddle.update()
+    pqspr_file.twiddle.commit()
+    assert pqspr_file.twiddle.read_unsigned() == 0x690
+    
+def test_twiddle_update2(pqspr_file):
+    # test 2
+    pqspr_file.wipe()
+    pqspr_file.commit()
+    
+    pqspr_file.omega.write_unsigned(0x01234567)
+    pqspr_file.q.write_unsigned(0xD01)
+    pqspr_file.q_dash.write_unsigned(0x94570cff)
+    pqspr_file.twiddle.write_unsigned(0x89abcdef)
+    pqspr_file.commit()
+    
+    assert pqspr_file.twiddle._next_uval == None
+    pqspr_file.twiddle.update()
+    pqspr_file.twiddle.commit()
+    assert pqspr_file.twiddle.read_unsigned() == 0x9CA02C
+    
+def test_twiddle_invert1(pqspr_file):
+    # test 1
+    pqspr_file.wipe()
+    pqspr_file.commit()
+    
+    pqspr_file.q.write_unsigned(0x55)
+    pqspr_file.twiddle.write_unsigned(0x22)
+    pqspr_file.commit()
+    
+    assert pqspr_file.twiddle._next_uval == None
+    pqspr_file.twiddle.inv()
+    pqspr_file.twiddle.commit()
+    assert pqspr_file.twiddle.read_unsigned() == 0x33
+    
+def test_twiddle_invert2(pqspr_file):
+    # test 2
+    pqspr_file.wipe()
+    pqspr_file.commit()
+    
+    pqspr_file.q.write_unsigned(0xdeadbeef)
+    pqspr_file.twiddle.write_unsigned(0x76543210)
+    pqspr_file.commit()
+    
+    assert pqspr_file.twiddle._next_uval == None
+    pqspr_file.twiddle.inv()
+    pqspr_file.twiddle.commit()
+    assert pqspr_file.twiddle.read_unsigned() == 0x68598CDF
+    
+def test_twiddle_invert3(pqspr_file):
+    # test 3
+    pqspr_file.wipe()
+    pqspr_file.commit()
+    
+    pqspr_file.q.write_unsigned(0x33)
+    pqspr_file.twiddle.write_unsigned(0x44)
+    pqspr_file.commit()
+    
+    assert pqspr_file.twiddle._next_uval == None
+    pqspr_file.twiddle.inv()
+    pqspr_file.twiddle.commit()
+    assert pqspr_file.twiddle.read_unsigned() == 0x22
+    
+def test_omega_update1(pqspr_file):
+    # test 1
+    pqspr_file.wipe()
+    pqspr_file.commit()
+    
+    pqspr_file.omega.write_unsigned(0x1234)
+    pqspr_file.q.write_unsigned(0xD01)
+    pqspr_file.q_dash.write_unsigned(0x94570cff)
+    pqspr_file.commit()
+    
+    assert pqspr_file.omega._next_uval == None
+    pqspr_file.omega.update()
+    pqspr_file.omega.commit()
+    assert pqspr_file.omega.read_unsigned() == 0xb09
+    
+def test_omega_update2(pqspr_file):
+    # test 2
+    pqspr_file.wipe()
+    pqspr_file.commit()
+    
+    pqspr_file.omega.write_unsigned(0xdeadbeef)
+    pqspr_file.q.write_unsigned(0xD01)
+    pqspr_file.q_dash.write_unsigned(0x94570cff)
+    pqspr_file.commit()
+    
+    assert pqspr_file.omega._next_uval == None
+    pqspr_file.omega.update()
+    assert pqspr_file.omega._uval == 0xdeadbeef
+    assert pqspr_file.omega._next_uval == 0xC1B1CC77
+    pqspr_file.omega.commit()
+    assert pqspr_file.omega.read_unsigned() == 0xC1B1CC77
+    assert pqspr_file.omega._next_uval == None
