@@ -25,7 +25,7 @@ def pqsp_reg_twiddle(mock_parent):
 @pytest.fixture
 def pqspr_file():
     """Creates an instance of PQSPRFile."""
-    return PQSPRFile()
+    return PQSPRFile('p')
 
 # Tests for Reg extension
 def test_read_word_unsigned(pqsp_reg_w):
@@ -209,9 +209,6 @@ def test_twiddle_mark_written(pqspr_file):
     
 def test_omega_update1(pqspr_file):
     # test 1
-    pqspr_file.wipe()
-    pqspr_file.commit()
-    
     pqspr_file.omega.write_unsigned(0x1234)
     pqspr_file.q.write_unsigned(0xD01)
     pqspr_file.q_dash.write_unsigned(0x94570cff)
@@ -224,9 +221,6 @@ def test_omega_update1(pqspr_file):
     
 def test_omega_update2(pqspr_file):
     # test 2
-    pqspr_file.wipe()
-    pqspr_file.commit()
-    
     pqspr_file.omega.write_unsigned(0xdeadbeef)
     pqspr_file.q.write_unsigned(0xD01)
     pqspr_file.q_dash.write_unsigned(0x94570cff)
@@ -250,9 +244,6 @@ def test_omega_mark_written(pqspr_file):
     
 def test_psi_update1(pqspr_file):
     # test 1
-    pqspr_file.wipe()
-    pqspr_file.commit()
-    
     pqspr_file.omega.write_unsigned(0x55555555)
     pqspr_file.commit()
     
@@ -269,9 +260,6 @@ def test_psi_update1(pqspr_file):
     
 def test_psi_update2(pqspr_file):
     # test 2
-    pqspr_file.wipe()
-    pqspr_file.commit()
-    
     pqspr_file.omega.write_unsigned(0x01234567)
     pqspr_file.commit()
     
@@ -296,9 +284,6 @@ def test_omega_mark_written(pqspr_file):
     
 def test_m_update1(pqspr_file):
     # test 1
-    pqspr_file.wipe()
-    pqspr_file.commit()
-    
     pqspr_file.mode.write_unsigned(0)
     pqspr_file.m.write_unsigned(0xf)
     pqspr_file.commit()
@@ -314,9 +299,6 @@ def test_m_update1(pqspr_file):
     
 def test_m_update2(pqspr_file):
     # test 2
-    pqspr_file.wipe()
-    pqspr_file.commit()
-    
     pqspr_file.mode.write_unsigned(1)
     pqspr_file.m.write_unsigned(0x7)
     pqspr_file.commit()
@@ -330,10 +312,40 @@ def test_m_update2(pqspr_file):
     pqspr_file.m.commit()
     assert pqspr_file.m.read_unsigned() == 0x1c
     
-def test_idx0(pqspr_file):
-    pqspr_file.wipe()
+def test_j2_update1(pqspr_file):
+    # test 1
+    pqspr_file.mode.write_unsigned(0)
+    pqspr_file.j2.write_unsigned(0x7)
     pqspr_file.commit()
     
+    pqspr_file.j2.update()
+    assert pqspr_file.j2.read_unsigned() == 0x7
+    pqspr_file.j2.commit()
+    assert pqspr_file.j2.read_unsigned() == 0xe
+    
+    pqspr_file.j2.update()
+    pqspr_file.j2.commit()
+    assert pqspr_file.j2.read_unsigned() == 0x1c
+    
+def test_j2_update2(pqspr_file):
+    # test 2
+    pqspr_file.j2.write_unsigned(0x1c)
+    pqspr_file.commit()
+    assert pqspr_file.j2.read_unsigned() == 0x1c
+    
+    pqspr_file.mode.write_unsigned(1)
+    pqspr_file.commit()
+    
+    pqspr_file.j2.update()
+    assert pqspr_file.j2.read_unsigned() == 0x1c
+    pqspr_file.j2.commit()
+    assert pqspr_file.j2.read_unsigned() == 0xe
+    
+    pqspr_file.j2.update()
+    pqspr_file.j2.commit()
+    assert pqspr_file.j2.read_unsigned() == 0x7
+    
+def test_idx0(pqspr_file):
     pqspr_file.idx_0.write_unsigned(0x12)
     pqspr_file.commit()
     assert pqspr_file.idx_0.read_unsigned() == 0x12
@@ -344,7 +356,7 @@ def test_idx0(pqspr_file):
     
     assert not pqspr_file._pending_writes
     pqspr_file.idx_0.inc()
-    assert 12 in pqspr_file._pending_writes
+    assert 13 in pqspr_file._pending_writes
     pqspr_file.commit()
     assert not pqspr_file._pending_writes
     
@@ -355,9 +367,6 @@ def test_idx0(pqspr_file):
     assert pqspr_file.idx_0.read_unsigned() == 0xcc
     
 def test_idx1(pqspr_file):
-    pqspr_file.wipe()
-    pqspr_file.commit()
-    
     pqspr_file.idx_1.write_unsigned(0x12)
     pqspr_file.commit()
     assert pqspr_file.idx_1.read_unsigned() == 0x12
@@ -368,7 +377,7 @@ def test_idx1(pqspr_file):
     
     assert not pqspr_file._pending_writes
     pqspr_file.idx_1.inc()
-    assert 13 in pqspr_file._pending_writes
+    assert 14 in pqspr_file._pending_writes
     pqspr_file.commit()
     assert not pqspr_file._pending_writes
     

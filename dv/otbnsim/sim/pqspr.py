@@ -123,8 +123,22 @@ class PQSPRegM(Reg):
         self._next_uval = ((m & 0x7f) << 1) if mode else ((m & 0xff) >> 1)
         self._mark_written()
         
-class PQSPRegIncIdx(PQSPRegInc):
-    '''Class for idx register
+class PQSPRegJ2(Reg):
+    '''Class for j2 register
+    Length is 32 bits'''
+    def __init__(self, parent, idx, uval):
+        super().__init__(parent, idx, width=32, uval=uval)
+        self.parent = parent
+        
+    def update(self):
+        m = self.read_unsigned()
+        mode = self.parent.mode.read_unsigned()
+        
+        self._next_uval = ((m & 0x7f) >> 1) if mode else ((m & 0xff) << 1)
+        self._mark_written()
+        
+class PQSPRegIncIdx0(PQSPRegInc):
+    '''Class for idx0 register
     length is 32 bit'''
     def __init__(self, parent, idx, uval):
         super().__init__(parent, idx, uval=uval)
@@ -133,11 +147,27 @@ class PQSPRegIncIdx(PQSPRegInc):
         
     def set(self):
         value = self.parent.j.read_unsigned() & 0xFF
-        # bit reverse (+ m)
+        # bit reverse
+        bit_reverse = int(f"{value:08b}"[::-1], 2)
+        
+        self._next_uval = bit_reverse
+        self._mark_written()
+        
+class PQSPRegIncIdx1(PQSPRegInc):
+    '''Class for idx1 register
+    length is 32 bit'''
+    def __init__(self, parent, idx, uval):
+        super().__init__(parent, idx, uval=uval)
+        self.parent = parent
+        self.id = idx
+        
+    def set(self):
+        value = self.parent.j.read_unsigned() & 0xFF
+        # bit reverse + m
         bit_reverse = int(f"{value:08b}"[::-1], 2)
         add = (bit_reverse + self.parent.m.read_unsigned()) & 0xff
-        # choose result depending on idx0 (self.id=12) or idx1 (self.id=13)
-        self._next_uval = bit_reverse if self.id == 12 else add
+        
+        self._next_uval = add
         self._mark_written()
 
 class PQSPRFile:
@@ -146,6 +176,7 @@ class PQSPRFile:
         self._name_pfx = name_pfx
         self._width = 256 # for tracing
         self._pending_writes = set()
+        
         # TRCU
         self.q = Reg(self, 0, 32, 0)
         self.q_dash = Reg(self, 1, 32, 0)
@@ -159,12 +190,13 @@ class PQSPRFile:
         self.idx_rc = PQSPRegInc(self, 9, 0)
         # RAU
         self.m = PQSPRegM(self, 10, 0)
-        self.j = PQSPRegInc(self, 11, 0)
-        self.idx_0 = PQSPRegIncIdx(self, 12, 0)
-        self.idx_1 = PQSPRegIncIdx(self, 13, 0)
-        self.mode = Reg(self, 14, 32, 0)
-        self.x = PQSPRegInc(self, 15, 0)
-        self.y = PQSPRegInc(self, 16, 0)
+        self.j2 = PQSPRegJ2(self, 11, 0)
+        self.j = PQSPRegInc(self, 12, 0)
+        self.idx_0 = PQSPRegIncIdx0(self, 13, 0)
+        self.idx_1 = PQSPRegIncIdx1(self, 14, 0)
+        self.mode = Reg(self, 15, 32, 0)
+        self.x = PQSPRegInc(self, 16, 0)
+        self.y = PQSPRegInc(self, 17, 0)
         
         # Store registers in a dict to iterate over them
         self._by_idx = {
@@ -179,12 +211,13 @@ class PQSPRFile:
             8: self.rc,
             9: self.idx_rc,
             10: self.m,
-            11: self.j,
-            12: self.idx_0,
-            13: self.idx_1,
-            14: self.mode,
-            15: self.x,
-            16: self.y
+            11: self.j2,
+            12: self.j,
+            13: self.idx_0,
+            14: self.idx_1,
+            15: self.mode,
+            16: self.x,
+            17: self.y
         }
         
     def mark_written(self, idx: int) -> None:
