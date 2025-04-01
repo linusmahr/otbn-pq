@@ -5,103 +5,21 @@ from .reg import Reg
 from .trace import Trace
 
 class TracePQSPR(Trace):
-    pass
+    def __init__(self, name: str, width: int, new_value: Optional[int]):
+        self.name = name
+        self.width = width
+        self.new_value = new_value
 
-class PQSPRegWide(Reg):
-    '''Extends the Reg by byte addressing.
-    Length is fixed to 256 bits'''
-    def __init__(self, parent, idx, uval=0):
-        super().__init__(parent, idx, width=256, uval=uval)
-    
-    def read_word_unsigned(self, word_idx: int) -> int:
-        """Extracts the 32-bit word at the given index (0-7)"""
-        assert 0 <= word_idx < 8, "Word index out of range (0-7)"
-        return (self._uval >> (word_idx * 32)) & 0xFFFFFFFF
-        
-    def _set_word(self, word_idx: int, value: int) -> None:
-        """Sets the 32-bit word at the given index (0-7) while preserving others."""
-        assert 0 <= word_idx < 8, "Word index out of range (0-7)"
-        assert 0 <= value < (1 << 32), "Value must be a 32-bit unsigned integer"
+    def trace(self) -> str:
+        if self.new_value is not None:
+            fmt_str = '{{}} = 0x{{:0{}x}}'.format(self.width // 4)
+            return fmt_str.format(self.name, self.new_value)
+        else:
+            return '0x' + 'x' * (self.width // 4)
 
-        # Initialize _next_uval from _uval if it's None
-        # Necessary for multiple word writes in same cycle
-        if self._next_uval is None:
-            self._next_uval = self._uval  
-
-        # Clear the specific word and set the new value
-        mask = 0xFFFFFFFF << (word_idx * 32)
-        self._next_uval = (self._next_uval & ~mask) | (value << (word_idx * 32))
-
-        self._mark_written()
-      
-    def write_word_unsigned(self, uval: int, idx: int) -> None:
-        """Writes a 32-bit word to a specific word index (0-7)"""
-        self._set_word(idx, uval)
-
-    @property
-    def B0(self) -> int:
-        return self.read_word_unsigned(0)
-
-    @B0.setter
-    def B0(self, value: int) -> None:
-        self._set_word(0, value)
-
-    @property
-    def B1(self) -> int:
-        return self.read_word_unsigned(1)
-
-    @B1.setter
-    def B1(self, value: int) -> None:
-        self._set_word(1, value)
-
-    @property
-    def B2(self) -> int:
-        return self.read_word_unsigned(2)
-
-    @B2.setter
-    def B2(self, value: int) -> None:
-        self._set_word(2, value)
-
-    @property
-    def B3(self) -> int:
-        return self.read_word_unsigned(3)
-
-    @B3.setter
-    def B3(self, value: int) -> None:
-        self._set_word(3, value)
-
-    @property
-    def B4(self) -> int:
-        return self.read_word_unsigned(4)
-
-    @B4.setter
-    def B4(self, value: int) -> None:
-        self._set_word(4, value)
-
-    @property
-    def B5(self) -> int:
-        return self.read_word_unsigned(5)
-
-    @B5.setter
-    def B5(self, value: int) -> None:
-        self._set_word(5, value)
-
-    @property
-    def B6(self) -> int:
-        return self.read_word_unsigned(6)
-
-    @B6.setter
-    def B6(self, value: int) -> None:
-        self._set_word(6, value)
-
-    @property
-    def B7(self) -> int:
-        return self.read_word_unsigned(7)
-
-    @B7.setter
-    def B7(self, value: int) -> None:
-        self._set_word(7, value)
-
+    def rtl_trace(self) -> str:
+        return '> {}: {}'.format(self.name,
+                                 Trace.hex_value(self.new_value, self.width))
 
 class PQSPRegInc(Reg):
     '''Class for idx registers.
@@ -153,11 +71,11 @@ class PQSPRegTwiddle(Reg):
         self._next_uval = t        
         self._mark_written()
         
-class PQSPRegOmega(PQSPRegWide):
+class PQSPRegOmega(Reg):
     '''Class for omega
     Length is 256 bits'''
-    def __init__(self, parent, idx, uval):
-        super().__init__(parent, idx, uval=uval)
+    def __init__(self, parent, idx, uval=0):
+        super().__init__(parent, idx, width=256, uval=uval)
         self.parent = parent
         
     def update(self):
@@ -178,11 +96,11 @@ class PQSPRegOmega(PQSPRegWide):
         self._next_uval = t        
         self._mark_written()
         
-class PQSPRegPsi(PQSPRegWide):
+class PQSPRegPsi(Reg):
     '''Class for psi
     Length is 256 bits'''
-    def __init__(self, parent, idx, uval):
-        super().__init__(parent, idx, uval=uval)
+    def __init__(self, parent, idx, uval=0):
+        super().__init__(parent, idx, width=256, uval=uval)
         self.parent = parent
         
     def update(self):
@@ -235,7 +153,7 @@ class PQSPRFile:
         self.idx_omega = PQSPRegInc(self, 5, 0)
         self.idx_psi = PQSPRegInc(self, 6, 0)
         self.const = Reg(self, 7, 32, 0)
-        self.rc = PQSPRegWide(self, 8, 0)
+        self.rc = Reg(self, 8, 256, 0)
         self.idx_rc = PQSPRegInc(self, 9, 0)
         # RAU
         self.m = PQSPRegM(self, 10, 0)
@@ -277,7 +195,6 @@ class PQSPRFile:
         return self._by_idx[idx]
         
     def changes(self) -> List[TracePQSPR]:
-        # todo
         ret = []
         for idx in sorted(self._pending_writes):
             assert 0 <= idx < len(self._by_idx)

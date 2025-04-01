@@ -80,7 +80,31 @@ class Reg:
 
     def abort(self) -> None:
         self._next_uval = None
+        
+    def read_word_unsigned(self, word_idx: int) -> int:
+        """Extracts the 32-bit word at the given index"""
+        assert 0 <= word_idx < self._width/32, "Word index out of range (0 - width/32-1)"
+        return (self._uval >> (word_idx * 32)) & 0xFFFFFFFF
 
+    def _set_word(self, word_idx: int, value: int) -> None:
+        """Sets the 32-bit word at the given index (0 - width/32-1) while preserving others."""
+        assert 0 <= word_idx < self._width/32, "Word index out of range (0-7)"
+        assert 0 <= value < (1 << 32), "Value must be a 32-bit unsigned integer"
+
+        # Initialize _next_uval from _uval if it's None
+        # Necessary for multiple word writes in same cycle
+        if self._next_uval is None:
+            self._next_uval = self._uval  
+
+        # Clear the specific word and set the new value
+        mask = 0xFFFFFFFF << (word_idx * 32)
+        self._next_uval = (self._next_uval & ~mask) | (value << (word_idx * 32))
+
+        self._mark_written()
+      
+    def write_word_unsigned(self, uval: int, idx: int) -> None:
+        """Writes a 32-bit word to a specific word index (0-7)"""
+        self._set_word(idx, uval)
 
 class RegFile:
     '''A base class for register files (used for both GPRs and WDRs).

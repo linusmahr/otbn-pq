@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import MagicMock
-from sim.pqspr import PQSPRegWide, PQSPRegInc, PQSPRegTwiddle, PQSPRFile, TracePQSPR, Reg
+from sim.pqspr import PQSPRegInc, PQSPRegTwiddle, PQSPRFile, TracePQSPR, Reg, PQSPRegOmega
 
 @pytest.fixture
 def mock_parent():
@@ -9,8 +9,8 @@ def mock_parent():
 
 @pytest.fixture
 def pqsp_reg_w(mock_parent):
-    """Creates an instance of PQSPRegWide."""
-    return PQSPRegWide(mock_parent, idx=3, uval=0)
+    """Creates an instance of wide Register."""
+    return Reg(mock_parent, idx=3, width=256, uval=0)
 
 @pytest.fixture
 def pqsp_reg_inc(mock_parent):
@@ -27,7 +27,7 @@ def pqspr_file():
     """Creates an instance of PQSPRFile."""
     return PQSPRFile()
 
-# Tests for PQSPRegWide
+# Tests for Reg extension
 def test_read_word_unsigned(pqsp_reg_w):
     pqsp_reg_w._uval = 0x12345678_9ABCDEF0_FEDCBA98_76543210
     assert pqsp_reg_w.read_word_unsigned(0) == 0x76543210
@@ -53,16 +53,6 @@ def test_write_word_unsigned(pqsp_reg_w):
     pqsp_reg_w.commit()
     assert pqsp_reg_w.read_word_unsigned(6) == 0x11223344
 
-def test_word_properties(pqsp_reg_w):
-    pqsp_reg_w.B0 = 0x11223344
-    assert pqsp_reg_w.B0 == 0x0
-    pqsp_reg_w.commit()
-    assert pqsp_reg_w.B0 == 0x11223344
-    pqsp_reg_w.B7 = 0xAABBCCDD
-    assert pqsp_reg_w.B7 == 0x0
-    pqsp_reg_w.commit()
-    assert pqsp_reg_w.B7 == 0xAABBCCDD
-
 def test_invalid_word_index(pqsp_reg_w):
     with pytest.raises(AssertionError):
         pqsp_reg_w.read_word_unsigned(8)
@@ -86,7 +76,7 @@ def test_increment_overflow(pqsp_reg_inc):
 # Tests for PQSPRFile
 def test_register_initialization(pqspr_file):
     assert pqspr_file.q._width == 32
-    assert isinstance(pqspr_file.omega, PQSPRegWide)
+    assert isinstance(pqspr_file.omega, PQSPRegOmega)
     assert isinstance(pqspr_file.idx_rc, PQSPRegInc)
 
 def test_mark_written(pqspr_file):
@@ -104,7 +94,7 @@ def test_mark_written(pqspr_file):
     
 
 def test_get_reg(pqspr_file):
-    assert isinstance(pqspr_file.get_reg(3), PQSPRegWide)
+    assert isinstance(pqspr_file.get_reg(3), PQSPRegOmega)
 
 def test_commit(pqspr_file):
     pqspr_file.mark_written(3)
@@ -125,7 +115,7 @@ def test_twiddle_set_as_psi(pqspr_file):
     pqspr_file.twiddle.write_unsigned(0x1234)
     pqspr_file.psi.write_unsigned(0x12345678_9ABCDEF0_FEDCBA98_76543210)
     pqspr_file.commit()
-    assert pqspr_file.psi.B0 == 0x76543210
+    assert pqspr_file.psi.read_word_unsigned(0) == 0x76543210
     
     pqspr_file.idx_psi.write_unsigned(1)
     pqspr_file.commit()
