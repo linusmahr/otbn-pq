@@ -142,7 +142,9 @@ class PQSPRegIncIdx(PQSPRegInc):
 
 class PQSPRFile:
     '''Models the Post-Quantum Special Purpose Register File'''
-    def __init__(self):
+    def __init__(self, name_pfx: str):
+        self._name_pfx = name_pfx
+        self._width = 256 # for tracing
         self._pending_writes = set()
         # TRCU
         self.q = Reg(self, 0, 32, 0)

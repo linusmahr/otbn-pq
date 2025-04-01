@@ -18,6 +18,7 @@ from .loop import LoopStack
 from .reg import RegFile
 from .trace import Trace, TracePC
 from .wsr import WSRFile
+from .pqspr import PQSPRFile
 
 # The number of cycles spent per round of a secure wipe. This takes constant
 # time in the RTL, mirrored here.
@@ -85,6 +86,7 @@ class OTBNState:
         self.ext_regs = OTBNExtRegs()
         self.wsrs = WSRFile(self.ext_regs)
         self.csrs = CSRFile()
+        self.pqsprs = PQSPRFile('p')
 
         self.pc = 0
         self._pc_next_override = None  # type: Optional[int]
@@ -229,6 +231,7 @@ class OTBNState:
         c += self.wsrs.changes()
         c += self.csrs.flags.changes()
         c += self.wdrs.changes()
+        c += self.pqsprs.changes()
         return c
 
     def executing(self) -> bool:
@@ -288,6 +291,7 @@ class OTBNState:
         self.wsrs.commit()
         self.csrs.flags.commit()
         self.wdrs.commit()
+        self.pqsprs.commit()
 
         if not sim_stalled:
             self.pc = self.get_next_pc()
@@ -303,6 +307,7 @@ class OTBNState:
         self.wsrs.abort()
         self.csrs.flags.abort()
         self.wdrs.abort()
+        self.pqsprs.abort()
 
     def start(self) -> None:
         '''Start running; perform state init'''

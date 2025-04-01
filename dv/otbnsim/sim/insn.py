@@ -1262,7 +1262,74 @@ class BNWSRW(OTBNInsn):
     def execute(self, state: OTBNState) -> None:
         val = state.wdrs.get_reg(self.wrs).read_unsigned()
         state.wsrs.write_at_idx(self.wsr, val)
+        
+class PQADD(OTBNInsn):
+    insn = insn_for_mnemonic('pq.add', 6)
+    
+    def __init__(self, raw: int, op_vals: Dict[str, int]):
+        super().__init__(raw, op_vals)
+        self.wrd = op_vals['wrd']
+        self.wrs1 = op_vals['wrs1']
+        self.wrs2 = op_vals['wrs2']
+        self.wrd_wsel = op_vals['wrd_wsel']
+        self.wrs1_wsel = op_vals['wrs1_wsel']
+        self.wrs2_wsel = op_vals['wrs2_wsel']
 
+    def execute(self, state: OTBNState) -> None:
+        a = state.wdrs.get_reg(self.wrs1).read_word_unsigned(self.wrs1_wsel)
+        b = state.wdrs.get_reg(self.wrs2).read_word_unsigned(self.wrs2_wsel)
+        mod = state.pqsprs.q.read_unsigned()
+        
+        if mod == 0:
+            state.stop_at_end_of_cycle(ErrBits.ILLEGAL_INSN)
+            return
+        
+        res = (a + b) % mod 
+        state.wdrs.get_reg(self.wrd).write_word_unsigned(res, self.wrd_wsel)
+
+class PQSUB(OTBNInsn):
+    insn = insn_for_mnemonic('pq.sub', 6)
+    
+    def __init__(self, raw: int, op_vals: Dict[str, int]):
+        super().__init__(raw, op_vals)
+        self.wrd = op_vals['wrd']
+        self.wrs1 = op_vals['wrs1']
+        self.wrs2 = op_vals['wrs2']
+        self.wrd_wsel = op_vals['wrd_wsel']
+        self.wrs1_wsel = op_vals['wrs1_wsel']
+        self.wrs2_wsel = op_vals['wrs2_wsel']
+
+    def execute(self, state: OTBNState) -> None:
+        a = state.wdrs.get_reg(self.wrs1).read_word_unsigned(self.wrs1_wsel)
+        b = state.wdrs.get_reg(self.wrs2).read_word_unsigned(self.wrs2_wsel)
+        mod = state.pqsprs.q.read_unsigned()
+        
+        if mod == 0:
+            state.stop_at_end_of_cycle(ErrBits.ILLEGAL_INSN)
+            return
+        
+        res = (a - b) % mod
+        state.wdrs.get_reg(self.wrd).write_word_unsigned(res, self.wrd_wsel)
+
+class PQPQSRW(OTBNInsn):
+    insn = insn_for_mnemonic('pq.pqsrw', 2)
+    
+    def __init__(self, raw: int, op_vals: Dict[str, int]):
+        super().__init__(raw, op_vals)
+        self.wsr = op_vals['wsr']
+        self.wrs = op_vals['wrs']
+
+    def execute(self, state: OTBNState) -> None:
+        if 0 <= self.wrs < 17:
+            value = state.wdrs.get_reg(self.wrs).read_unsigned()
+            width = state.pqsprs.get_reg(self.wsr)._width
+            
+            masked_value = value & ((1 << width) - 1)
+            
+            state.pqsprs.get_reg(self.wsr).write_unsigned(masked_value)
+        else:
+            # Invalid WRS index. Stop with an illegal instruction error.
+            state.stop_at_end_of_cycle(ErrBits.ILLEGAL_INSN)
 
 INSN_CLASSES = [
     ADD, ADDI, LUI, SUB, SLL, SLLI, SRL, SRLI, SRA, SRAI,
@@ -1282,5 +1349,9 @@ INSN_CLASSES = [
     BNCMP, BNCMPB,
     BNLID, BNSID,
     BNMOV, BNMOVR,
-    BNWSRR, BNWSRW
+    BNWSRR, BNWSRW,
+    
+    PQADD,
+    PQSUB,
+    PQPQSRW
 ]

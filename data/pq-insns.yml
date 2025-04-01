@@ -520,7 +520,7 @@
   operands: [wsr, wrs]
   operands:
     - name: wsr
-      doc: The PQSR to read
+      doc: The PQSR to write
     - name: wrs
       doc: Source WDR
   doc: |
