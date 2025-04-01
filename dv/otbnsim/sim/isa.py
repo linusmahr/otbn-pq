@@ -140,7 +140,7 @@ class RV32ImmShift(OTBNInsn):
         self.grs1 = op_vals['grs1']
         self.shamt = op_vals['shamt']
         
-class PQByteAddr(OTBNInsn):
+class PQInsnByteAddr(OTBNInsn):
     '''A general class for 6 operands insns for pq extension'''
     def __init__(self, raw: int, op_vals: Dict[str, int]):
         super().__init__(raw, op_vals)
@@ -151,7 +151,7 @@ class PQByteAddr(OTBNInsn):
         self.wrs1_wsel = op_vals['wrs1_wsel']
         self.wrs2_wsel = op_vals['wrs2_wsel']
         
-class PQIndirect(OTBNInsn):
+class PQInsnIndirect(OTBNInsn):
     '''A general class for 5 operands indirect insns for pq extension'''
     def __init__(self, raw: int, op_vals: Dict[str, int]):
         super().__init__(raw, op_vals)

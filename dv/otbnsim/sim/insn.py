@@ -7,7 +7,7 @@ from typing import Dict, Iterator, Optional
 from .constants import ErrBits
 from .flags import FlagReg
 from .isa import (OTBNInsn, RV32RegReg, RV32RegImm,
-                  RV32ImmShift, PQByteAddr, PQIndirect, 
+                  RV32ImmShift, PQInsnByteAddr, PQInsnIndirect, 
                   insn_for_mnemonic, logical_byte_shift,
                   extract_quarter_word)
 from .state import OTBNState
@@ -1264,7 +1264,7 @@ class BNWSRW(OTBNInsn):
         val = state.wdrs.get_reg(self.wrs).read_unsigned()
         state.wsrs.write_at_idx(self.wsr, val)
         
-class PQADD(PQByteAddr):
+class PQADD(PQInsnByteAddr):
     insn = insn_for_mnemonic('pq.add', 6)
 
     def execute(self, state: OTBNState) -> None:
@@ -1279,7 +1279,7 @@ class PQADD(PQByteAddr):
         res = (a + b) % q 
         state.wdrs.get_reg(self.wrd).write_word_unsigned(res, self.wrd_wsel)
 
-class PQADDIND(PQIndirect):
+class PQADDIND(PQInsnIndirect):
     insn = insn_for_mnemonic('pq.add.ind', 5)
         
     def execute(self, state: OTBNState) -> None:
@@ -1331,7 +1331,7 @@ class PQADDIIND(OTBNInsn):
         #todo
         pass
 
-class PQSUB(PQByteAddr):
+class PQSUB(PQInsnByteAddr):
     insn = insn_for_mnemonic('pq.sub', 6)
 
     def execute(self, state: OTBNState) -> None:
@@ -1346,7 +1346,7 @@ class PQSUB(PQByteAddr):
         res = (a - b) % q
         state.wdrs.get_reg(self.wrd).write_word_unsigned(res, self.wrd_wsel)
 
-class PQSUBIND(PQIndirect):
+class PQSUBIND(PQInsnIndirect):
     insn = insn_for_mnemonic('pq.sub.ind', 5)
     
     def execute(self, state: OTBNState) -> None:
@@ -1382,7 +1382,7 @@ class PQSUBIND(PQIndirect):
             state.pqsprs.idx_0.inc()
             state.pqsprs.idx_1.inc()
 
-class PQMUL(PQByteAddr):
+class PQMUL(PQInsnByteAddr):
     insn = insn_for_mnemonic('pq.mul', 6)
     
     def execute(self, state: OTBNState) -> None:
@@ -1395,10 +1395,6 @@ class PQMUL(PQByteAddr):
             state.stop_at_end_of_cycle(ErrBits.ILLEGAL_INSN)
             return
         
-        if q_inv == 0:
-            state.stop_at_end_of_cycle(ErrBits.ILLEGAL_INSN)
-            return
-        
         p = a * b
         m = (p & 0xFFFFFFFF) * q_inv
         s = p + ((m & 0xFFFFFFFF) * q)
@@ -1408,6 +1404,335 @@ class PQMUL(PQByteAddr):
             
         state.wdrs.get_reg(self.wrd).write_word_unsigned(t, self.wrd_wsel)
 
+class PQMULIND(PQInsnIndirect):
+    insn = insn_for_mnemonic('pq.mul.ind', 5)
+    
+    def execute(self, state: OTBNState) -> None:
+        if self.set_idx and self.inc_idx:
+            state.stop_at_end_of_cycle(ErrBits.ILLEGAL_INSN)
+            return
+        
+        a = state.wdrs.get_reg(state.pqsprs.idx_0.read_register()).read_word_unsigned(state.pqsprs.idx_0.read_word_idx())
+        b = state.wdrs.get_reg(state.pqsprs.idx_1.read_register()).read_word_unsigned(state.pqsprs.idx_1.read_word_idx())
+        q = state.pqsprs.q.read_unsigned()
+        q_inv = state.pqsprs.q_dash.read_unsigned()
+        
+        if q == 0:
+            state.stop_at_end_of_cycle(ErrBits.ILLEGAL_INSN)
+            return
+        
+        p = a * b
+        m = (p & 0xFFFFFFFF) * q_inv
+        s = p + ((m & 0xFFFFFFFF) * q)
+        t = (s >> 32) & 0xFFFFFFFF
+        if t >= q:
+            t -= q
+        
+        state.wdrs.get_reg(state.pqsprs.idx_0.read_register()).write_word_unsigned(t, state.pqsprs.idx_0.read_word_idx())
+        
+        if self.update_m:
+            state.pqsprs.m.update()
+            
+        if self.update_j2:
+            state.pqsprs.j2.update()
+            
+        if self.update_j:
+            state.pqsprs.j.inc()
+            
+        if self.set_idx:
+            state.pqsprs.idx_0.set()
+            state.pqsprs.idx_1.set()
+            
+        if self.inc_idx:
+            state.pqsprs.idx_0.inc()
+            state.pqsprs.idx_1.inc()
+            
+class PQSCALEIND(PQInsnIndirect):
+    insn = insn_for_mnemonic('pq.scale.ind', 5)
+    
+    def execute(self, state: OTBNState) -> None:
+        if self.set_idx and self.inc_idx:
+            state.stop_at_end_of_cycle(ErrBits.ILLEGAL_INSN)
+            return
+        
+        a = state.wdrs.get_reg(state.pqsprs.idx_0.read_register()).read_word_unsigned(state.pqsprs.idx_0.read_word_idx())
+        b = state.pqsprs.const.read_unsigned()
+        q = state.pqsprs.q.read_unsigned()
+        q_inv = state.pqsprs.q_dash.read_unsigned()
+        
+        if q == 0:
+            state.stop_at_end_of_cycle(ErrBits.ILLEGAL_INSN)
+            return
+        
+        p = a * b
+        m = (p & 0xFFFFFFFF) * q_inv
+        s = p + ((m & 0xFFFFFFFF) * q)
+        t = (s >> 32) & 0xFFFFFFFF
+        if t >= q:
+            t -= q
+        
+        state.wdrs.get_reg(state.pqsprs.idx_0.read_register()).write_word_unsigned(t, state.pqsprs.idx_0.read_word_idx())
+        
+        if self.update_m:
+            state.pqsprs.m.update()
+            
+        if self.update_j2:
+            state.pqsprs.j2.update()
+            
+        if self.update_j:
+            state.pqsprs.j.inc()
+            
+        if self.set_idx:
+            state.pqsprs.idx_0.set()
+            state.pqsprs.idx_1.set()
+            
+        if self.inc_idx:
+            state.pqsprs.idx_0.inc()
+            state.pqsprs.idx_1.inc()
+            
+class PQCTBF(OTBNInsn):
+    insn = insn_for_mnemonic('pq.ctbf', 7)
+    
+    def __init__(self, raw: int, op_vals: Dict[str, int]):
+        super().__init__(raw, op_vals)
+        self.wrs1 = op_vals['wrs1']
+        self.wrs2 = op_vals['wrs2']
+        self.wrs1_wsel = op_vals['wrs1_wsel']
+        self.wrs2_wsel = op_vals['wrs2_wsel']
+        self.update_twiddle = op_vals['twiddle']
+        self.update_omega = op_vals['omega']
+        self.update_psi = op_vals['psi']
+        
+    def execute(self, state: OTBNState) -> None:
+        if self.set_idx and self.inc_idx:
+            state.stop_at_end_of_cycle(ErrBits.ILLEGAL_INSN)
+            return
+        
+        a = state.wdrs.get_reg(self.wrs1).read_word_unsigned(self.wrs1_wsel)
+        b = state.wdrs.get_reg(self.wrs2).read_word_unsigned(self.wrs2_wsel)
+        q = state.pqsprs.q.read_unsigned()
+        q_inv = state.pqsprs.q_dash.read_unsigned()
+        twiddle = state.pqsprs.twiddle.read_unsigned()
+        
+        if q == 0:
+            state.stop_at_end_of_cycle(ErrBits.ILLEGAL_INSN)
+            return
+        
+        # ct butterfly op: rs1 * twiddle
+        p = b * twiddle
+        m = (p & 0xFFFFFFFF) * q_inv
+        s = p + ((m & 0xFFFFFFFF) * q)
+        t = (s >> 32) & 0xFFFFFFFF
+        if t >= q:
+            t -= q
+            
+        # ct butterfly add and sub (mod necessary?)
+        a_new = (a + t) % q
+        b_new = (a - t) % q
+        
+        state.wdrs.get_reg(self.wrs1).write_word_unsigned(a_new, self.wrs1_wsel)
+        state.wdrs.get_reg(self.wrs2).write_word_unsigned(b_new, self.wrs2_wsel)
+        
+        if self.update_twiddle:
+            state.pqsprs.twiddle.update()
+            
+        if self.update_omega:
+            state.pqsprs.omega.update()
+            
+        if self.update_psi:
+            state.pqsprs.psi.update()
+
+class PQCTBFIND(OTBNInsn):
+    insn = insn_for_mnemonic('pq.ctbf.ind', 8)
+    
+    def __init__(self, raw: int, op_vals: Dict[str, int]):
+        super().__init__(raw, op_vals)
+        self.update_twiddle = op_vals['twiddle']
+        self.update_omega = op_vals['omega']
+        self.update_psi = op_vals['psi']
+        self.update_m = op_vals['update_m']
+        self.update_j2 = op_vals['update_j2']
+        self.update_j = op_vals['update_j']
+        self.set_idx = op_vals['set_idx']
+        self.inc_idx = op_vals['inc_idx']
+        
+    def execute(self, state: OTBNState) -> None:
+        if self.set_idx and self.inc_idx:
+            state.stop_at_end_of_cycle(ErrBits.ILLEGAL_INSN)
+            return
+        
+        a = state.wdrs.get_reg(state.pqsprs.idx_0.read_register()).read_word_unsigned(state.pqsprs.idx_0.read_word_idx())
+        b = state.wdrs.get_reg(state.pqsprs.idx_1.read_register()).read_word_unsigned(state.pqsprs.idx_1.read_word_idx())
+        q = state.pqsprs.q.read_unsigned()
+        q_inv = state.pqsprs.q_dash.read_unsigned()
+        twiddle = state.pqsprs.twiddle.read_unsigned()
+        
+        if q == 0:
+            state.stop_at_end_of_cycle(ErrBits.ILLEGAL_INSN)
+            return
+        
+        # ct butterfly op: rs1 * twiddle
+        p = b * twiddle
+        m = (p & 0xFFFFFFFF) * q_inv
+        s = p + ((m & 0xFFFFFFFF) * q)
+        t = (s >> 32) & 0xFFFFFFFF
+        if t >= q:
+            t -= q
+            
+        # ct butterfly add and sub (mod necessary?)
+        a_new = (a + t) % q
+        b_new = (a - t) % q
+        
+        state.wdrs.get_reg(state.pqsprs.idx_0.read_register()).write_word_unsigned(a_new, state.pqsprs.idx_0.read_word_idx())
+        state.wdrs.get_reg(state.pqsprs.idx_1.read_register()).write_word_unsigned(b_new, state.pqsprs.idx_1.read_word_idx())
+        
+        if self.update_twiddle:
+            state.pqsprs.twiddle.update()
+            
+        if self.update_omega:
+            state.pqsprs.omega.update()
+            
+        if self.update_psi:
+            state.pqsprs.psi.update()
+            
+        if self.update_m:
+            state.pqsprs.m.update()
+            
+        if self.update_j2:
+            state.pqsprs.j2.update()
+            
+        if self.update_j:
+            state.pqsprs.j.inc()
+            
+        if self.set_idx:
+            state.pqsprs.idx_0.set()
+            state.pqsprs.idx_1.set()
+            
+        if self.inc_idx:
+            state.pqsprs.idx_0.inc()
+            state.pqsprs.idx_1.inc()
+            
+class PQGSBF(OTBNInsn):
+    insn = insn_for_mnemonic('pq.gsbf', 7)
+    
+    def __init__(self, raw: int, op_vals: Dict[str, int]):
+        super().__init__(raw, op_vals)
+        self.wrs1 = op_vals['wrs1']
+        self.wrs2 = op_vals['wrs2']
+        self.wrs1_wsel = op_vals['wrs1_wsel']
+        self.wrs2_wsel = op_vals['wrs2_wsel']
+        self.update_twiddle = op_vals['twiddle']
+        self.update_omega = op_vals['omega']
+        self.update_psi = op_vals['psi']
+        
+    def execute(self, state: OTBNState) -> None:
+        if self.set_idx and self.inc_idx:
+            state.stop_at_end_of_cycle(ErrBits.ILLEGAL_INSN)
+            return
+        
+        a = state.wdrs.get_reg(self.wrs1).read_word_unsigned(self.wrs1_wsel)
+        b = state.wdrs.get_reg(self.wrs2).read_word_unsigned(self.wrs2_wsel)
+        q = state.pqsprs.q.read_unsigned()
+        q_inv = state.pqsprs.q_dash.read_unsigned()
+        twiddle = state.pqsprs.twiddle.read_unsigned()
+        
+        if q == 0:
+            state.stop_at_end_of_cycle(ErrBits.ILLEGAL_INSN)
+            return
+        
+        # gs butterfly add and sub (mod necessary?)
+        a_new = (a + b) % q
+        b_new = (a - b) % q
+        
+        # gs butterfly op: (rs0-rs1) * twiddle
+        p = b_new * twiddle
+        m = (p & 0xFFFFFFFF) * q_inv
+        s = p + ((m & 0xFFFFFFFF) * q)
+        t = (s >> 32) & 0xFFFFFFFF
+        if t >= q:
+            t -= q
+        
+        state.wdrs.get_reg(self.wrs1).write_word_unsigned(a_new, self.wrs1_wsel)
+        state.wdrs.get_reg(self.wrs2).write_word_unsigned(t, self.wrs2_wsel)
+        
+        if self.update_twiddle:
+            state.pqsprs.twiddle.update()
+            
+        if self.update_omega:
+            state.pqsprs.omega.update()
+            
+        if self.update_psi:
+            state.pqsprs.psi.update()
+
+class PQGSBFIND(OTBNInsn):
+    insn = insn_for_mnemonic('pq.gsbf.ind', 8)
+    
+    def __init__(self, raw: int, op_vals: Dict[str, int]):
+        super().__init__(raw, op_vals)
+        self.update_twiddle = op_vals['twiddle']
+        self.update_omega = op_vals['omega']
+        self.update_psi = op_vals['psi']
+        self.update_m = op_vals['update_m']
+        self.update_j2 = op_vals['update_j2']
+        self.update_j = op_vals['update_j']
+        self.set_idx = op_vals['set_idx']
+        self.inc_idx = op_vals['inc_idx']
+        
+    def execute(self, state: OTBNState) -> None:
+        if self.set_idx and self.inc_idx:
+            state.stop_at_end_of_cycle(ErrBits.ILLEGAL_INSN)
+            return
+        
+        a = state.wdrs.get_reg(state.pqsprs.idx_0.read_register()).read_word_unsigned(state.pqsprs.idx_0.read_word_idx())
+        b = state.wdrs.get_reg(state.pqsprs.idx_1.read_register()).read_word_unsigned(state.pqsprs.idx_1.read_word_idx())
+        q = state.pqsprs.q.read_unsigned()
+        q_inv = state.pqsprs.q_dash.read_unsigned()
+        twiddle = state.pqsprs.twiddle.read_unsigned()
+        
+        if q == 0:
+            state.stop_at_end_of_cycle(ErrBits.ILLEGAL_INSN)
+            return
+        
+        # gs butterfly add and sub (mod necessary?)
+        a_new = (a + b) % q
+        b_new = (a - b) % q
+        
+        # gs butterfly op: (rs0-rs1) * twiddle
+        p = b_new * twiddle
+        m = (p & 0xFFFFFFFF) * q_inv
+        s = p + ((m & 0xFFFFFFFF) * q)
+        t = (s >> 32) & 0xFFFFFFFF
+        if t >= q:
+            t -= q
+        
+        state.wdrs.get_reg(state.pqsprs.idx_0.read_register()).write_word_unsigned(a_new, state.pqsprs.idx_0.read_word_idx())
+        state.wdrs.get_reg(state.pqsprs.idx_1.read_register()).write_word_unsigned(t, state.pqsprs.idx_1.read_word_idx())
+        
+        if self.update_twiddle:
+            state.pqsprs.twiddle.update()
+            
+        if self.update_omega:
+            state.pqsprs.omega.update()
+            
+        if self.update_psi:
+            state.pqsprs.psi.update()
+            
+        if self.update_m:
+            state.pqsprs.m.update()
+            
+        if self.update_j2:
+            state.pqsprs.j2.update()
+            
+        if self.update_j:
+            state.pqsprs.j.inc()
+            
+        if self.set_idx:
+            state.pqsprs.idx_0.set()
+            state.pqsprs.idx_1.set()
+            
+        if self.inc_idx:
+            state.pqsprs.idx_0.inc()
+            state.pqsprs.idx_1.inc()
 
 class PQPQSRW(OTBNInsn):
     insn = insn_for_mnemonic('pq.pqsrw', 2)
@@ -1418,15 +1743,20 @@ class PQPQSRW(OTBNInsn):
         self.wrs = op_vals['wrs']
 
     def execute(self, state: OTBNState) -> None:
-        if 0 <= self.wrs < 17:
-            value = state.wdrs.get_reg(self.wrs).read_unsigned()
-            width = state.pqsprs.get_reg(self.pqspr)._width
-            
-            masked_value = value & ((1 << width) - 1)
-            
+        # Validate WRS index (must be in range [0, 32])
+        if not (0 <= self.wrs < 33):
+            state.stop_at_end_of_cycle(ErrBits.ILLEGAL_INSN)
+            return
+
+        reg_value = state.wdrs.get_reg(self.wrs).read_unsigned()
+        dest_width = state.pqsprs.get_reg(self.pqspr)._width
+        
+        masked_value = reg_value & ((1 << dest_width) - 1)
+
+        # Validate PQSPR index (only TRCU registers are allowed: 0-9)
+        if 0 <= self.pqspr < 10:
             state.pqsprs.get_reg(self.pqspr).write_unsigned(masked_value)
         else:
-            # Invalid WRS index. Stop with an illegal instruction error.
             state.stop_at_end_of_cycle(ErrBits.ILLEGAL_INSN)
 
 INSN_CLASSES = [
@@ -1451,6 +1781,8 @@ INSN_CLASSES = [
     
     PQADD, PQADDIND, PQADDIIND, 
     PQSUB, PQSUBIND,
-    PQMUL,
+    PQMUL, PQMULIND,
+    PQSCALEIND,
+    PQCTBF, PQCTBFIND, PQGSBF, PQGSBFIND,
     PQPQSRW
 ] # addi.ind incomplete, subi.ind missing
