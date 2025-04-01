@@ -83,11 +83,11 @@
   operands: &pq-operands-indirect
     - &pq-update-m
       name: update_m
-      doc: Update m (m = m >> 1)
+      doc: Update m
       type: uimm1
     - &pq-update-j2
       name: update_j2
-      doc: Update j2 (j2 = j2 << 1)
+      doc: Update j2
       type: uimm1
     - &pq-update-j
       name: update_j

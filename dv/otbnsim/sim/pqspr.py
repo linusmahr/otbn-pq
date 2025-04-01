@@ -137,13 +137,23 @@ class PQSPRegJ2(Reg):
         self._next_uval = ((m & 0x7f) >> 1) if mode else ((m & 0xff) << 1)
         self._mark_written()
         
-class PQSPRegIncIdx0(PQSPRegInc):
+class PQSPRegIncIdx(PQSPRegInc):
+    def __init__(self, parent, idx, uval):
+        super().__init__(parent, idx, uval=uval)
+        self.parent = parent
+    
+    def read_register(self) -> int:
+        return self._uval >> 3
+    
+    def read_word_idx(self) -> int:
+        return self._uval & 0x7
+        
+class PQSPRegIncIdx0(PQSPRegIncIdx):
     '''Class for idx0 register
     length is 32 bit'''
     def __init__(self, parent, idx, uval):
         super().__init__(parent, idx, uval=uval)
         self.parent = parent
-        self.id = idx
         
     def set(self):
         value = self.parent.j.read_unsigned() & 0xFF
@@ -153,13 +163,12 @@ class PQSPRegIncIdx0(PQSPRegInc):
         self._next_uval = bit_reverse
         self._mark_written()
         
-class PQSPRegIncIdx1(PQSPRegInc):
+class PQSPRegIncIdx1(PQSPRegIncIdx):
     '''Class for idx1 register
     length is 32 bit'''
     def __init__(self, parent, idx, uval):
         super().__init__(parent, idx, uval=uval)
         self.parent = parent
-        self.id = idx
         
     def set(self):
         value = self.parent.j.read_unsigned() & 0xFF

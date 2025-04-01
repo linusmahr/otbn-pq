@@ -139,6 +139,27 @@ class RV32ImmShift(OTBNInsn):
         self.grd = op_vals['grd']
         self.grs1 = op_vals['grs1']
         self.shamt = op_vals['shamt']
+        
+class PQByteAddr(OTBNInsn):
+    '''A general class for 6 operands insns for pq extension'''
+    def __init__(self, raw: int, op_vals: Dict[str, int]):
+        super().__init__(raw, op_vals)
+        self.wrd = op_vals['wrd']
+        self.wrs1 = op_vals['wrs1']
+        self.wrs2 = op_vals['wrs2']
+        self.wrd_wsel = op_vals['wrd_wsel']
+        self.wrs1_wsel = op_vals['wrs1_wsel']
+        self.wrs2_wsel = op_vals['wrs2_wsel']
+        
+class PQIndirect(OTBNInsn):
+    '''A general class for 5 operands indirect insns for pq extension'''
+    def __init__(self, raw: int, op_vals: Dict[str, int]):
+        super().__init__(raw, op_vals)
+        self.update_m = op_vals['update_m']
+        self.update_j2 = op_vals['update_j2']
+        self.update_j = op_vals['update_j']
+        self.set_idx = op_vals['set_idx']
+        self.inc_idx = op_vals['inc_idx']
 
 
 def logical_byte_shift(value: int, shift_type: int, shift_bytes: int) -> int:

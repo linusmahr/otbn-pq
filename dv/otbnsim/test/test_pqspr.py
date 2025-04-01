@@ -366,6 +366,13 @@ def test_idx0(pqspr_file):
     pqspr_file.commit()
     assert pqspr_file.idx_0.read_unsigned() == 0xcc
     
+def test_idx0_reads(pqspr_file):
+    pqspr_file.idx_0.write_unsigned(0x11)
+    pqspr_file.commit()
+    
+    assert pqspr_file.idx_0.read_register() == 0x2
+    assert pqspr_file.idx_0.read_word_idx() == 0x1
+    
 def test_idx1(pqspr_file):
     pqspr_file.idx_1.write_unsigned(0x12)
     pqspr_file.commit()
@@ -387,3 +394,10 @@ def test_idx1(pqspr_file):
     pqspr_file.idx_1.set()
     pqspr_file.commit()
     assert pqspr_file.idx_1.read_unsigned() == 0xdd
+    
+def test_idx1_reads(pqspr_file):
+    pqspr_file.idx_1.write_unsigned(0x3a)
+    pqspr_file.commit()
+    
+    assert pqspr_file.idx_1.read_register() == 0x7
+    assert pqspr_file.idx_1.read_word_idx() == 0x2
