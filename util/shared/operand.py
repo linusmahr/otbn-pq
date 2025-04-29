@@ -648,9 +648,10 @@ class IsrOperandType(ImmOperandType):
                          f'name from {as_str}.')
 
     def op_val_to_str(self, op_val: int, cur_pc: Optional[int]) -> str:
-        isr_at_addr = self.isrs.addr_to_isr.get(op_val)
-        if isr_at_addr is not None:
-            return isr_at_addr.name
+        # disabled so pq.srw and pq.srr renders correctly
+        # isr_at_addr = self.isrs.addr_to_isr.get(op_val)
+        # if isr_at_addr is not None:
+        #     return isr_at_addr.name
 
         return str(op_val)
 
