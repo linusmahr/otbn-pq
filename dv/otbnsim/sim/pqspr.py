@@ -22,16 +22,49 @@ class TracePQSPR(Trace):
                                  Trace.hex_value(self.new_value, self.width))
 
 class PQSPRegInc(Reg):
-    '''Class for idx registers.
-    Length is fixed to 32 bits'''
+    '''Class for idx registers.'''
+    def __init__(self, parent, idx, width, uval):
+        super().__init__(parent, idx, width, uval=uval)
+        self._width = width
+        
+    def inc(self):
+        '''Currently allows inc up to 2**width value'''
+        assert self._uval < (1 << self._width), "Value exceeds range"
+        inc = self._uval + 1
+        if inc >= 2**self._width:
+            inc = 0
+        self._next_uval = inc
+        self._mark_written()
+        
+class PQSPRegIncXY(Reg):
+    '''Class for X and Y registers.
+    width is 32 bit, but only counts to 5'''
     def __init__(self, parent, idx, uval):
         super().__init__(parent, idx, width=32, uval=uval)
         
     def inc(self):
-        '''Currently allows inc up to 32bit value'''
-        assert self._uval < (1 << self._width) - 1, "Value exceeds 32-bit range"
-        self._next_uval = self._uval + 1
+        '''increments to 5 and wraps back around'''
+        assert self._uval < 5, "Value exceeds range"
+        inc = self._uval + 1
+        if inc >= 5:
+            inc = 0
+        self._next_uval = inc
         self._mark_written()
+        
+class PQSPReg32(Reg):
+    '''Class for X and Y registers.
+    width is 32 bit, but only counts to 5'''
+    def __init__(self, parent, idx, uval):
+        super().__init__(parent, idx, width=256, uval=uval)
+        
+    def write_unsigned(self, uval: int) -> None:
+        '''only write lower 32 bits'''
+        uval = uval & 0xFFFFFFFF
+        self._next_uval = uval
+        self._mark_written()
+        
+    def read_unsigned(self, backdoor: bool = False) -> int:
+        return self._uval & 0xFFFFFFFF
         
 class PQSPRegTwiddle(Reg):
     '''Class for twiddle
@@ -41,7 +74,7 @@ class PQSPRegTwiddle(Reg):
         self.parent = parent
         
     def set_as_psi(self):
-        """Uets twiddle to the currently indexed psi word"""
+        """Sets twiddle to the currently indexed psi word"""
         self._next_uval = self.parent.psi.read_word_unsigned(self.parent.idx_psi.read_unsigned())
         self._mark_written()
         
@@ -108,6 +141,13 @@ class PQSPRegPsi(Reg):
         for byte in range(8):
             self.write_word_unsigned(omega, byte)
         self._mark_written()
+        
+class PQSPRegRC(Reg):
+    '''Class for psi
+    Length is 256 bits'''
+    def __init__(self, parent, idx, uval=0):
+        super().__init__(parent, idx, width=256, uval=uval)
+        self.parent = parent
             
 class PQSPRegM(Reg):
     '''Class for m register
@@ -138,8 +178,8 @@ class PQSPRegJ2(Reg):
         self._mark_written()
         
 class PQSPRegIncIdx(PQSPRegInc):
-    def __init__(self, parent, idx, uval):
-        super().__init__(parent, idx, uval=uval)
+    def __init__(self, parent, idx, width, uval):
+        super().__init__(parent, idx, width, uval=uval)
         self.parent = parent
     
     def read_register(self) -> int:
@@ -151,8 +191,8 @@ class PQSPRegIncIdx(PQSPRegInc):
 class PQSPRegIncIdx0(PQSPRegIncIdx):
     '''Class for idx0 register
     length is 32 bit'''
-    def __init__(self, parent, idx, uval):
-        super().__init__(parent, idx, uval=uval)
+    def __init__(self, parent, idx, width, uval):
+        super().__init__(parent, idx, width, uval=uval)
         self.parent = parent
         
     def set(self):
@@ -166,8 +206,8 @@ class PQSPRegIncIdx0(PQSPRegIncIdx):
 class PQSPRegIncIdx1(PQSPRegIncIdx):
     '''Class for idx1 register
     length is 32 bit'''
-    def __init__(self, parent, idx, uval):
-        super().__init__(parent, idx, uval=uval)
+    def __init__(self, parent, idx, width, uval):
+        super().__init__(parent, idx, width, uval=uval)
         self.parent = parent
         
     def set(self):
@@ -192,20 +232,20 @@ class PQSPRFile:
         self.twiddle = PQSPRegTwiddle(self, 2, 0)
         self.omega = PQSPRegOmega(self, 3, 0)
         self.psi = PQSPRegPsi(self, 4, 0)
-        self.idx_omega = PQSPRegInc(self, 5, 0)
-        self.idx_psi = PQSPRegInc(self, 6, 0)
-        self.const = Reg(self, 7, 32, 0)
-        self.rc = Reg(self, 8, 256, 0)
-        self.idx_rc = PQSPRegInc(self, 9, 0)
+        self.idx_omega = PQSPRegInc(self, 5, 3, 0)
+        self.idx_psi = PQSPRegInc(self, 6, 3, 0)
+        self.const = PQSPReg32(self, 7, 0)
+        self.rc = PQSPRegRC(self, 8, 0)
+        self.idx_rc = PQSPRegInc(self, 9, 2, 0)
         # RAU
         self.m = PQSPRegM(self, 10, 0)
         self.j2 = PQSPRegJ2(self, 11, 0)
-        self.j = PQSPRegInc(self, 12, 0)
-        self.idx_0 = PQSPRegIncIdx0(self, 13, 0)
-        self.idx_1 = PQSPRegIncIdx1(self, 14, 0)
+        self.j = PQSPRegInc(self, 12, 8, 0)
+        self.idx_0 = PQSPRegIncIdx0(self, 13, 8, 0)
+        self.idx_1 = PQSPRegIncIdx1(self, 14, 8, 0)
         self.mode = Reg(self, 15, 32, 0)
-        self.x = PQSPRegInc(self, 16, 0)
-        self.y = PQSPRegInc(self, 17, 0)
+        self.x = PQSPRegIncXY(self, 16, 0)
+        self.y = PQSPRegIncXY(self, 17, 0)
         
         # Store registers in a dict to iterate over them
         self._by_idx = {
@@ -244,7 +284,7 @@ class PQSPRFile:
             assert 0 <= idx < len(self._by_idx)
             next_val = self.get_reg(idx).read_next()
             ret.append(TracePQSPR('{}{:02}'.format(self._name_pfx, idx),
-                                     self._width,
+                                     self.get_reg(idx)._width,
                                      next_val))
         return ret
     

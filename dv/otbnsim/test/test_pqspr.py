@@ -15,7 +15,7 @@ def pqsp_reg_w(mock_parent):
 @pytest.fixture
 def pqsp_reg_inc(mock_parent):
     """Creates an instance of PQSPRegInc."""
-    return PQSPRegInc(mock_parent, idx=5, uval=0)
+    return PQSPRegInc(mock_parent, idx=5, width=32, uval=0)
 
 @pytest.fixture
 def pqsp_reg_twiddle(mock_parent):
@@ -70,8 +70,23 @@ def test_increment(pqsp_reg_inc):
 
 def test_increment_overflow(pqsp_reg_inc):
     pqsp_reg_inc._uval = (1 << 32) - 1
-    with pytest.raises(AssertionError):
-        pqsp_reg_inc.inc()
+    pqsp_reg_inc.inc()
+    pqsp_reg_inc.commit()
+    assert pqsp_reg_inc.read_unsigned() == 0
+    
+# Tests fpr PQSPRegIncXY
+def test_XY(pqspr_file):
+    pqspr_file.x.write_unsigned(3)
+    pqspr_file.commit()
+    assert pqspr_file.x.read_unsigned() == 3
+    
+    pqspr_file.x.inc()
+    pqspr_file.commit()
+    assert pqspr_file.x.read_unsigned() == 4
+
+    pqspr_file.x.inc()
+    pqspr_file.commit()
+    assert pqspr_file.x.read_unsigned() == 0
 
 # Tests for PQSPRFile
 def test_register_initialization(pqspr_file):
@@ -360,7 +375,7 @@ def test_idx0(pqspr_file):
     pqspr_file.commit()
     assert not pqspr_file._pending_writes
     
-    pqspr_file.j.write_unsigned(0x333)
+    pqspr_file.j.write_unsigned(0x33)
     pqspr_file.commit()
     pqspr_file.idx_0.set()
     pqspr_file.commit()
@@ -388,7 +403,7 @@ def test_idx1(pqspr_file):
     pqspr_file.commit()
     assert not pqspr_file._pending_writes
     
-    pqspr_file.j.write_unsigned(0x333)
+    pqspr_file.j.write_unsigned(0x33)
     pqspr_file.m.write_unsigned(0x11)
     pqspr_file.commit()
     pqspr_file.idx_1.set()
