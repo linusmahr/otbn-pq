@@ -1330,8 +1330,39 @@ class PQADDIIND(OTBNInsn):
         self.inc_idx = op_vals['inc_idx']
         
     def execute(self, state: OTBNState) -> None:
-        #todo
-        pass
+        # add imm and the word from the reg specified in idx0
+        if self.set_idx and self.inc_idx:
+            state.stop_at_end_of_cycle(ErrBits.ILLEGAL_INSN)
+            return
+        
+        a = state.wdrs.get_reg(state.pqsprs.idx_0.read_register()).read_word_unsigned(state.pqsprs.idx_0.read_word_idx())
+        b = self.imm
+        q = state.pqsprs.q.read_unsigned()
+        
+        add = a + b
+        sub = add - q
+        res = add if add < q else sub
+        
+        res = res & 0xFFFFFFFF
+        
+        state.wdrs.get_reg(state.pqsprs.idx_0.read_register()).write_word_unsigned(res, state.pqsprs.idx_0.read_word_idx())
+        
+        if self.update_m:
+            state.pqsprs.m.update()
+            
+        if self.update_j2:
+            state.pqsprs.j2.update()
+            
+        if self.update_j:
+            state.pqsprs.j.inc()
+            
+        if self.set_idx:
+            state.pqsprs.idx_0.set()
+            state.pqsprs.idx_1.set()
+            
+        if self.inc_idx:
+            state.pqsprs.idx_0.inc()
+            state.pqsprs.idx_1.inc()
 
 class PQSUB(PQInsnByteAddr):
     insn = insn_for_mnemonic('pq.sub', 6)
@@ -1399,8 +1430,39 @@ class PQSUBIIND(OTBNInsn):
         self.inc_idx = op_vals['inc_idx']
         
     def execute(self, state: OTBNState) -> None:
-        #todo
-        pass
+        # subtract the word from the reg specified in idx0 and imm
+        if self.set_idx and self.inc_idx:
+            state.stop_at_end_of_cycle(ErrBits.ILLEGAL_INSN)
+            return
+        
+        a = state.wdrs.get_reg(state.pqsprs.idx_0.read_register()).read_word_unsigned(state.pqsprs.idx_0.read_word_idx())
+        b = self.imm
+        q = state.pqsprs.q.read_unsigned()
+        
+        add = (a + q) - b
+        sub = add - q
+        res = add if add < q else sub
+        
+        res = res & 0xFFFFFFFF
+        
+        state.wdrs.get_reg(state.pqsprs.idx_0.read_register()).write_word_unsigned(res, state.pqsprs.idx_0.read_word_idx())
+        
+        if self.update_m:
+            state.pqsprs.m.update()
+            
+        if self.update_j2:
+            state.pqsprs.j2.update()
+            
+        if self.update_j:
+            state.pqsprs.j.inc()
+            
+        if self.set_idx:
+            state.pqsprs.idx_0.set()
+            state.pqsprs.idx_1.set()
+            
+        if self.inc_idx:
+            state.pqsprs.idx_0.inc()
+            state.pqsprs.idx_1.inc()
 
 class PQMUL(PQInsnByteAddr):
     insn = insn_for_mnemonic('pq.mul', 6)
