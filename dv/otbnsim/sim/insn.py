@@ -1832,11 +1832,10 @@ class PQPQSRR(OTBNInsn):
             state.stop_at_end_of_cycle(ErrBits.ILLEGAL_INSN)
             return
 
-        reg_value = state.pqsprs.get_reg(self.pqspr).read_unsigned()
-
         # Validate PQSPR index
         if 0 <= self.pqspr < 18:
-            state.pqsprs.get_reg(self.pqspr).write_unsigned(reg_value)
+            reg_value = state.pqsprs.get_reg(self.pqspr).read_unsigned()
+            state.wdrs.get_reg(self.wrs).write_unsigned(reg_value)
         else:
             state.stop_at_end_of_cycle(ErrBits.ILLEGAL_INSN)
 
