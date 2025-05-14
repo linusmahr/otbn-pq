@@ -14,7 +14,7 @@ module otbn_adder
     output  logic   [DATA_WIDTH-1:0]    res_o
 );
 
-    logic   [DATA_WIDTH-1:0]    add;
+    logic   [DATA_WIDTH:0]    add;
     logic   [DATA_WIDTH-1:0]    sub;
 
 always_comb

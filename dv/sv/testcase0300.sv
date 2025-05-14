@@ -40,7 +40,7 @@ end
 
 // Measure CC
 cc_stop = cc; 
-cc_count_falcon512_indirect = cc_stop - cc_start;        
+cc_count_falcon512_0 = cc_stop - cc_start;        
        
 // Read DMEM  
 for (int i=0 ; i<512 ; i++) begin 

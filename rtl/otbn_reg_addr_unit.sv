@@ -421,7 +421,7 @@ module otbn_reg_addr_unit
       unique case (1'b1)
           ispr_init_i: mode_intg_d = EccZeroWord; 
           ispr_base_wr_en_i[0]: begin
-            mode_no_intg_d = {30'b0, ispr_base_wdata_i[0]};
+            mode_no_intg_d = {31'b0, ispr_base_wdata_i[0]};
             mode_intg_d = mode_intg_calc;
           end
         default: ;

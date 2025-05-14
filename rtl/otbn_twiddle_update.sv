@@ -362,7 +362,7 @@ module otbn_twiddle_update
 
 
 
-    // Prime Dash Register
+  // Prime Dash Register
     prim_secded_inv_39_32_enc i_secded_enc_prime_dash (
       .data_i (prime_dash_no_intg_d),
       .data_o (prime_dash_intg_calc)
@@ -405,7 +405,7 @@ module otbn_twiddle_update
                               ((ispr_addr_i == IsprPrimeDash) & (ispr_base_wr_en_i[0] | ispr_pq_wr_en_i));
 
 
-    // Twiddle Register
+  // Twiddle Register
     prim_secded_inv_39_32_enc i_secded_enc_twiddle (
       .data_i (twiddle_no_intg_d),
       .data_o (twiddle_intg_calc)
@@ -463,7 +463,7 @@ module otbn_twiddle_update
                            ((ispr_addr_i == IsprTwiddle) & (ispr_base_wr_en_i[0] | ispr_pq_wr_en_i));
 
 
-    // Omega Register
+  // Omega Register
 
     for (genvar i_word = 0; i_word < BaseWordsPerPQLEN; i_word++) begin : g_omega_words
       prim_secded_inv_39_32_enc i_secded_enc (
@@ -515,7 +515,7 @@ module otbn_twiddle_update
     end
 
 
-    // Psi Register
+  // Psi Register
     for (genvar i_word = 0; i_word < BaseWordsPerPQLEN; i_word++) begin : g_psi_words
       prim_secded_inv_39_32_enc i_secded_enc (
         .data_i (psi_no_intg_d[i_word*32+:32]),
@@ -564,7 +564,7 @@ module otbn_twiddle_update
                                    ((ispr_addr_i == IsprPsi) & (ispr_base_wr_en_i[i_word] | ispr_pq_wr_en_i));
     end
 
-    // Omega Idx Register
+  // Omega Idx Register
     prim_secded_inv_39_32_enc i_secded_enc_omega_idx (
       .data_i (omega_idx_no_intg_d),
       .data_o (omega_idx_intg_calc)
@@ -614,7 +614,7 @@ module otbn_twiddle_update
                              ((ispr_addr_i == IsprOmegaIdx) & (ispr_base_wr_en_i[0] | ispr_pq_wr_en_i));
     
     
-    // Psi Idx Register
+  // Psi Idx Register
     prim_secded_inv_39_32_enc i_secded_enc_psi_idx (
       .data_i (psi_idx_no_intg_d),
       .data_o (psi_idx_intg_calc)
@@ -664,7 +664,7 @@ module otbn_twiddle_update
                            ((ispr_addr_i == IsprPsiIdx) & (ispr_base_wr_en_i[0] | ispr_pq_wr_en_i));
 
 
-    // Const Register
+  // Const Register
     prim_secded_inv_39_32_enc i_secded_enc_const (
       .data_i (const_no_intg_d),
       .data_o (const_intg_calc)
@@ -707,7 +707,7 @@ module otbn_twiddle_update
                          ((ispr_addr_i == IsprConst) & (ispr_base_wr_en_i[0] | ispr_pq_wr_en_i));
 
 
-    // RC Register
+  // RC Register
     for (genvar i_word = 0; i_word < BaseWordsPerPQLEN; i_word++) begin : g_rc_words
       prim_secded_inv_39_32_enc i_secded_enc (
         .data_i (rc_no_intg_d[i_word*32+:32]),
@@ -751,7 +751,7 @@ module otbn_twiddle_update
                                   ((ispr_addr_i == IsprRc) & (ispr_base_wr_en_i[i_word] | ispr_pq_wr_en_i));
     end
 
-    // RC Idx Register
+  // RC Idx Register
     prim_secded_inv_39_32_enc i_secded_enc_rc_idx (
       .data_i (rc_idx_no_intg_d),
       .data_o (rc_idx_intg_calc)

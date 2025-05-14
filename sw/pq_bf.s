@@ -3,7 +3,7 @@
 /* SPDX-License-Identifier: Apache-2.0 */
 
 /* PQ Buttefly example for kyber prime. Loads two 256-bit words from DMem into w1, w0.
-   Butterfly Operations using PQ.CTBF and PQ.GSBF for montgomery multiplication with the results placed into w3, w2 */
+   Butterfly Operations using PQ.CTBF and PQ.GSBF for montgomery multiplication */
 
 .section .text
 
@@ -269,12 +269,3 @@ psi_inv:
   .quad 0x0043ca37000ce94a
   .quad 0x00375fa900454828
   .quad 0x00000008002ab0d3
-
-/* Expected result is
-   w3 =
-   00000898 0000001e 000003b3 00000038
-   00000b67 000000f5 000008c1 00000bc3
-
-   w2 =
-   00000042 00000019 000004b5 00000024
-   000007da 00000031 0000055c 00000040 */
